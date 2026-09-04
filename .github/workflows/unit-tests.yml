@@ -1,0 +1,30 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Go unit tests (mock, no Redis)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Run unit tests
+        # Only mock-based tests (TestUnit_*) — the Redis integration test
+        # (TestConcurrentBooking_ExactlyOneWins) needs a live Redis and is excluded.
+        run: go test ./... -run '^TestUnit_' -race -count=1 -v
