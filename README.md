@@ -18,7 +18,8 @@ A mini real-time cinema booking app built to solve the **double-booking race con
 - [Flow](#flow)
 - [Tech Stack](#tech-stack)
 - [How to Run](#how-to-run)
-- [Testing](#testing)
+- [Concurrent Testing](#concurrent-testing)
+- [Unit Testing](#unit-testing)
 
 ## The Case
 
@@ -89,13 +90,31 @@ go run ./cmd
 
 Browse keys live at [localhost:8081](http://localhost:8081) (Redis Commander).
 
-## Testing
+## Concurrent Testing
 
 ```bash
-go test ./internal/booking/
+go test ./internal/booking/ -run '^TestConcurrentBooking' -v
 ```
 
+> ⚠️ Requires a live Redis — run `docker compose up -d` first.
+
 `service_test.go` runs `TestConcurrentBooking_ExactlyOneWins`: **100,000 goroutines** all race to book the same seat simultaneously, counted with `atomic.Int64` and synchronized via `WaitGroup`. The test asserts exactly **1 success** and **99,999 rejections** — proving `SET NX` eliminates the double-booking race even under extreme contention.
+
+## Unit Testing
+
+Mock-based unit tests validating the codebase logic — service delegation, HTTP handlers, store helpers, and in-memory concurrency — **without needing Redis**.
+
+```bash
+go test ./... -run '^TestUnit_' -v
+```
+
+| File | What it covers |
+|---|---|
+| `mock_test.go` | Hand-rolled `mockStore` test double for the `BookingStore` interface |
+| `service_mock_test.go` | Service delegation & error propagation, `sessionKey` / `parseSession` helpers, `MemoryStore` / `ConcurrentStore` logic |
+| `handler_mock_test.go` | HTTP handlers end-to-end via `httptest` (hold, list seats, confirm, release) |
+
+These are also the tests that run in CI — see [`.github/workflows/unit-tests.yml`](.github/workflows/unit-tests.yml).
 
 ---
 
